@@ -33,6 +33,7 @@ class Chatbot:
         name: str,
         personality: str,
         start_prompt: str,
+        prior_chat: list[dict] | None = None,
         store_conversation: bool = True,
         exit_cue: str = "EXIT",
         goodbye: str = "See you next time.",
@@ -43,12 +44,16 @@ class Chatbot:
             name (str): The name of the chatbot.
             personality (str): A description of the chatbot's intended personality.
             start_prompt (str): The text presented at the start of a conversation with the chatbot.
+            prior_chat (list[dict] | None, optional): _description_. Defaults to None.
             store_conversation (bool, optional): Whether the conversation statistics should be recorded and stored. Defaults to True.
             exit_cue (str, optional): The user prompt ending the conversation with the chatbot. Defaults to "EXIT".
             goodbye (str, optional): The sign-off message of the bot before the program is terminated. Defaults to "See you next time.".
         """
         self.name = name
-        self.messages = [{"role": "system", "content": personality}]
+        if prior_chat is None:
+            self.messages = [{"role": "system", "content": personality}]
+        else:
+            self.messages = prior_chat
         self.start_prompt = start_prompt
         self.store_conversation = store_conversation
         self.exit_cue = exit_cue
@@ -153,6 +158,7 @@ class Chatbot:
             "Number of words used by chatbot": len(processed_strings),
             "Subject of conversation": subject,
             "Name of user": user_name,
+            "Messages": self.messages,
         }
 
     def extract_user_name(self, user_messages: list[str]) -> str:
@@ -238,8 +244,22 @@ class Chatbot:
         folder_path = Path(folder_path)
         # Create the directory, and parents, if they do not already exist
         folder_path.mkdir(parents=True, exist_ok=True)
-        # Save file in specified folder
-        with open(folder_path / f"conversation_{timestamp}.json", "w") as json_file:
+
+        # Generate the initial filename
+        filename = f"conversation_{timestamp}.json"
+        file_path = folder_path / filename
+
+        # Check if the filename already exists (multiple topics in the same minute)
+        counter = 1
+        while file_path.exists():
+            # If the filename already exists, add a counter to the filename
+            # Stop when the filename and counter do not exist
+            filename = f"conversation_{timestamp} ({counter}).json"
+            file_path = folder_path / filename
+            counter += 1
+
+        # Save the file with the generated filename
+        with open(file_path, "w") as json_file:
             json.dump(conversation_statistics, json_file)
 
 
@@ -328,13 +348,46 @@ class Conversation:
                 with open(selected_file, "r") as json_file:
                     conversation_data = json.load(json_file)
                 print(f"Loaded conversation from {selected_file.name}")
-
+                self.continue_conversation(conversation_data)
             else:
                 raise ValueError("Invalid index.")
 
         except ValueError:
             raise ValueError(
                 "Invalid input. Please enter an appropriate, numerical index or 'cancel'."
+            )
+
+    def continue_conversation(self, conversation_data: dict) -> None:
+        # Load initial messages and chatbot name
+        self.messages = conversation_data["Messages"]
+        bot_name = conversation_data["Name of chatbot"]
+
+        if bot_name == "Henry":
+            # Continue the discussion with Henry chatbot
+            bot = Chatbot(
+                name="Henry",
+                personality="You should try to make as many jokes as possible, whilst staying relevant to the conversation.",
+                start_prompt="Hi There, I am Henry the chatbot. What would you like to chat about today?",
+                prior_chat=self.messages,
+            )
+            # Run the chat
+            bot.run_chat("gpt-3.5-turbo")
+
+        elif bot_name == "Vera":
+            # Vera chatbot
+            bot = Chatbot(
+                name="Vera",
+                personality="You are a very sad chatbot and try respond as pessimistically as possible.",
+                start_prompt="Hello, are you also very sad today? What is happening today?",
+                prior_chat=self.messages,
+            )
+
+            # Run the chat
+            bot.run_chat("gpt-3.5-turbo")
+
+        else:
+            raise ValueError(
+                "Loaded conversation data does not include prior messages."
             )
 
     def start_new_conversation(self) -> None:
