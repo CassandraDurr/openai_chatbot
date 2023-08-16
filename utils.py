@@ -1,6 +1,7 @@
 """A module storing helper functions."""
 import json
 import re
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -8,7 +9,7 @@ import openai
 
 
 # Return the API key from the configurations json file
-def get_api_key(config_location: str = "config.json"):
+def get_api_key(config_location: str = "config.json") -> str:
     """Return the OpenAi API key stored in a json file.
 
     Args:
@@ -24,7 +25,7 @@ def get_api_key(config_location: str = "config.json"):
 
 
 # Define the characteristics of a given chatbot.
-# Source of inspiration: https://ihsavru.medium.com/how-to-build-your-own-custom-chatgpt-using-python-openai-78e470d1540e
+# Partial source: https://ihsavru.medium.com/how-to-build-your-own-custom-chatgpt-using-python-openai-78e470d1540e
 class Chatbot:
     """A class defining a chatbot and code for user-chatbot interactions."""
 
@@ -44,20 +45,49 @@ class Chatbot:
             name (str): The name of the chatbot.
             personality (str): A description of the chatbot's intended personality.
             start_prompt (str): The text presented at the start of a conversation with the chatbot.
-            prior_chat (list[dict] | None, optional): _description_. Defaults to None.
+            prior_chat (list[dict] | None, optional): Previous message history with a bot. Defaults to None.
             store_conversation (bool, optional): Whether the conversation statistics should be recorded and stored. Defaults to True.
             exit_cue (str, optional): The user prompt ending the conversation with the chatbot. Defaults to "EXIT".
             goodbye (str, optional): The sign-off message of the bot before the program is terminated. Defaults to "See you next time.".
         """
         self.name = name
+        self.personality = personality
+        # Set the message history
         if prior_chat is None:
+            # New conversation
             self.messages = [{"role": "system", "content": personality}]
         else:
-            self.messages = prior_chat
+            # Prior chat exists
+            self.messages = self.filter_prior_chat(prior_messages=prior_chat)
         self.start_prompt = start_prompt
         self.store_conversation = store_conversation
         self.exit_cue = exit_cue
         self.goodbye = goodbye
+
+    def filter_prior_chat(self, prior_messages: list[dict]) -> list[dict]:
+        """Filter out previous system messages when loading an existing conversation.
+
+        Include a new system message depicting the personality of the chosen bot.
+
+        Args:
+            conversation_data (list[dict]): Original converation statistics from prior conversation.
+
+        Returns:
+            list[dict]: Original message chain, excluding prior system messages besides the most recent system message.
+        """
+        # Filter out all prior system/ personality messages
+        filtered_messages = [
+            message for message in prior_messages if message["role"] != "system"
+        ]
+        # Input the bot's personality
+        filtered_messages.append(
+            {
+                "role": "system",
+                "content": self.personality,
+            }
+        )
+
+        return filtered_messages
 
     def generate_response(
         self, user_input: str, model_gen: str = "gpt-3.5-turbo"
@@ -276,9 +306,9 @@ class Conversation:
         self.folder_path = folder_path
         # Get the list of existing conversation filepaths from the folder
         # Empty list if no conversations exist
-        self.conversation_files = [
-            filepath for filepath in Path(self.folder_path).glob("conversation_*.json")
-        ]
+        self.conversation_files = list(
+            Path(self.folder_path).glob("conversation_*.json")
+        )
 
     def start_conversation_loader(self) -> None:
         """This function is called if a user has stated that they want to load a conversation."""
@@ -305,7 +335,7 @@ class Conversation:
         if user_input == "0":
             self.start_new_conversation()
         elif user_input == "1":
-            exit()
+            sys.exit()
         else:
             raise ValueError("Invalid input. Please enter either 0 or 1.")
 
@@ -335,7 +365,7 @@ class Conversation:
 
         # User wants to exit.
         if user_input.lower() == "cancel":
-            exit()
+            sys.exit()
 
         # If the user wants to choose a conversation:
         try:
@@ -347,60 +377,45 @@ class Conversation:
                 with open(selected_file, "r") as json_file:
                     conversation_data = json.load(json_file)
                 print(f"Loaded conversation from {selected_file.name}")
-                self.continue_conversation(conversation_data)
+                self.continue_conversation(conversation_data["Messages"])
             else:
                 raise ValueError("Invalid index.")
 
-        except ValueError:
+        except ValueError as exc:
             raise ValueError(
                 "Invalid input. Please enter an appropriate, numerical index or 'cancel'."
-            )
+            ) from exc
 
-    def continue_conversation(self, conversation_data: dict) -> None:
-        # Load initial messages
-        loaded_messages: list = conversation_data["Messages"]
-        # Filter out all system/ personality messages
-        filtered_messages = [
-            message for message in loaded_messages if message["role"] != "system"
-        ]
+    def continue_conversation(self, prior_messages: list[dict]) -> None:
+        """Continue a previously had conversation, selecting a new bot to chat with.
 
+        Args:
+            prior_messages (list[dict]): List of messages loaded from prior conversation.
+
+        Raises:
+            ValueError: User input is not 0 (Henry), or 1 (Vera).
+        """
         print("With whom would you like to chat today?\n[0] Henry\n[1] Vera")
         user_input = input("You: ")
         if user_input == "0":
-            # Input the personality
-            filtered_messages.append(
-                {
-                    "role": "system",
-                    "content": "You should try to make as many jokes as possible, whilst staying relevant to the conversation.",
-                }
-            )
-
             # Henry chatbot
             bot = Chatbot(
                 name="Henry",
                 personality="You should try to make as many jokes as possible, whilst staying relevant to the conversation.",
                 start_prompt="Hi There, I am Henry the chatbot. What would you like to chat about today?",
-                prior_chat=filtered_messages,
+                prior_chat=prior_messages,
             )
 
             # Run the chat
             bot.run_chat("gpt-3.5-turbo")
 
         elif user_input == "1":
-            # Input the personality
-            filtered_messages.append(
-                {
-                    "role": "system",
-                    "content": "You are a very sad chatbot and try respond as pessimistically as possible.",
-                }
-            )
-
             # Vera chatbot
             bot = Chatbot(
                 name="Vera",
                 personality="You are a very sad chatbot and try respond as pessimistically as possible.",
                 start_prompt="Hello, are you also very sad today? What is happening today?",
-                prior_chat=filtered_messages,
+                prior_chat=prior_messages,
             )
 
             # Run the chat
@@ -412,6 +427,9 @@ class Conversation:
         """This function is called when a user wants to start a new conversation.
 
         The function initialises a conversation with Henry, or Vera.
+
+        Raises:
+            ValueError: User input is not 0 (Henry), or 1 (Vera).
         """
         print("With whom would you like to chat today?\n[0] Henry\n[1] Vera")
         user_input = input("You: ")
