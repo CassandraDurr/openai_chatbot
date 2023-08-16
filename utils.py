@@ -191,6 +191,11 @@ class Chatbot:
         stop_words = [
             "I",
             "i",
+            "Hi",
+            "Hello",
+            "hi",
+            "hello",
+            self.name,
             "want",
             "would",
             "more",
@@ -236,3 +241,129 @@ class Chatbot:
         # Save file in specified folder
         with open(folder_path / f"conversation_{timestamp}.json", "w") as json_file:
             json.dump(conversation_statistics, json_file)
+
+
+# Load or start a conversation
+class Conversation:
+    """A class that manages the conversations between the user and the chatbots."""
+
+    def __init__(self, folder_path: str = "./conversations") -> None:
+        """Initialise a Conversation instance.
+
+        Args:
+            folder_path (str, optional): The folder to save conversations in. Defaults to "./conversations".
+        """
+        self.folder_path = folder_path
+        # Get the list of existing conversation filepaths from the folder
+        # Empty list if no conversations exist
+        self.conversation_files = [
+            filepath for filepath in Path(self.folder_path).glob("conversation_*.json")
+        ]
+
+    def start_conversation_loader(self) -> None:
+        """This function is called if a user has stated that want to load a conversation.
+
+        The function handles the case where no saved conversation exists, and where saved conversations are available.
+        """
+        if len(self.conversation_files) == 0:
+            # No filepaths in stipulated folder
+            self.handle_no_saved_conversations()
+        else:
+            self.handle_saved_conversations()
+
+    def handle_no_saved_conversations(self) -> None:
+        """This function is called when a user wants to load a conversation, but no converations exist.
+
+        The user has the option to start a new conversation, or exit the program.
+
+        Raises:
+            ValueError: User input is neither 0 (start a new conversation), or 1 (exit program).
+        """
+        print(
+            "No saved conversations found. Would you like to start a new conversation?"
+        )
+        print("[0] yes\n[1] no")
+        user_input = input("You: ")
+        if user_input == "0":
+            self.start_new_conversation()
+        elif user_input == "1":
+            exit()
+        else:
+            raise ValueError("Invalid input. Please enter either 0 or 1.")
+
+    def handle_saved_conversations(self) -> None:
+        """This function is called when a user wants to load a conversation, and converations exist.
+
+        The user can select the index of the conversation or cancel the program.
+
+        Raises:
+            ValueError: User input is not numerical, not 'cancel', or is larger than the number of saved conversations.
+        """
+        print("Saved conversations:")
+        # Iterate through the saved conversation file paths
+        for idx, file in enumerate(self.conversation_files):
+            with open(file, "r") as json_file:
+                conversation_data = json.load(json_file)
+            # Print index, filename, and the topic of the conversation.
+            print(
+                f"[{idx}] {file.stem}, topic: {conversation_data['Subject of conversation']}"
+            )
+
+        # Allow the user to decide whether they want to continue a conversation or exit.
+        user_input = input(
+            "Choose the conversation to continue (enter the index or 'cancel'): "
+        )
+
+        # User wants to exit.
+        if user_input.lower() == "cancel":
+            exit()
+
+        # If the user wants to choose a conversation:
+        try:
+            # Convert user input from a string to an integer for interpretation
+            selected_idx = int(user_input)
+            # Check if the index is within the range of provided indices.
+            if 0 <= selected_idx < len(self.conversation_files):
+                selected_file = self.conversation_files[selected_idx]
+                with open(selected_file, "r") as json_file:
+                    conversation_data = json.load(json_file)
+                print(f"Loaded conversation from {selected_file.name}")
+
+            else:
+                raise ValueError("Invalid index.")
+
+        except ValueError:
+            raise ValueError(
+                "Invalid input. Please enter an appropriate, numerical index or 'cancel'."
+            )
+
+    def start_new_conversation(self) -> None:
+        """This function is called when a user wants to start a new conversation.
+
+        The function initialises a conversation with Henry, or Vera.
+        """
+        print("With whom would you like to chat today?\n[0] Henry\n[1] Vera")
+        user_input = input("You: ")
+        if user_input == "0":
+            # Henry chatbot
+            bot = Chatbot(
+                name="Henry",
+                personality="You should try to make as many jokes as possible, whilst staying relevant to the conversation.",
+                start_prompt="Hi There, I am Henry the chatbot. What would you like to chat about today?",
+            )
+
+            # Run the chat
+            bot.run_chat("gpt-3.5-turbo")
+
+        elif user_input == "1":
+            # Vera chatbot
+            bot = Chatbot(
+                name="Vera",
+                personality="You are a very sad chatbot and try respond as pessimistically as possible.",
+                start_prompt="Hello, are you also very sad today? What is happening today?",
+            )
+
+            # Run the chat
+            bot.run_chat("gpt-3.5-turbo")
+        else:
+            raise ValueError("Invalid input. Please enter either 0 or 1.")

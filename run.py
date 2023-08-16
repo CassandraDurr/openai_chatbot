@@ -1,25 +1,18 @@
+"""A module to run the chats with chatbots."""
 import openai
-from utils import Chatbot, get_api_key
+
+from utils import Conversation, get_api_key
 
 openai.api_key = get_api_key()
-
-print("With whom would you like to chat today? \n[0] Henry \n[1] Vera")
+conversation = Conversation()
+print(
+    "What do you want to do? \n[0] continue a conversation \n[1] start a conversation"
+)
 user_input = input("You: ")
 
 if user_input == "0":
-    # Henry chatbot
-    bot = Chatbot(name="Henry", personality="You should try to make as many jokes as possible, whilst staying relevant to the conversation.",
-                    start_prompt="Hi There, I am Henry the chatbot. What would you like to chat about today?")
-
-    # Run the chat
-    bot.run_chat("gpt-3.5-turbo")
-    
+    conversation.start_conversation_loader()
 elif user_input == "1":
-    # Vera chatbot
-    bot = Chatbot(name="Vera", personality="You are a very sad chatbot and try respond as pessimistically as possible.",
-                    start_prompt="Hello, are you also very sad today? What is happening today?")
-
-    # Run the chat
-    bot.run_chat("gpt-3.5-turbo")
+    conversation.start_new_conversation()
 else:
     raise ValueError("Invalid input. Please enter either 0 or 1.")
