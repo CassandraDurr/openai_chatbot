@@ -408,7 +408,7 @@ class Conversation:
             # Henry chatbot
             bot = Chatbot(
                 name="Henry",
-                personality="You should try to make as many jokes as possible, whilst staying relevant to the conversation.",
+                personality="You are a chatbot named Henry and should try to make as many jokes as possible, whilst staying relevant to the conversation.",
                 start_prompt="Hi There, I am Henry the chatbot. What would you like to chat about today?",
                 prior_chat=prior_messages,
             )
@@ -420,7 +420,7 @@ class Conversation:
             # Vera chatbot
             bot = Chatbot(
                 name="Vera",
-                personality="You are a very sad chatbot and try respond as pessimistically as possible.",
+                personality="You are a very sad chatbot named Vera and try respond as pessimistically as possible.",
                 start_prompt="Hello, are you also very sad today? What is happening today?",
                 prior_chat=prior_messages,
             )
