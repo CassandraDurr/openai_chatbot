@@ -1,4 +1,4 @@
-"""A module storing helper functions."""
+"""A module storing helper functions and classes."""
 import json
 import re
 import sys
@@ -154,13 +154,13 @@ class Chatbot:
         ]
         user_messages.append(self.exit_cue)
 
-        # Extract conversation subject from the user's first message.
+        # Extract conversation subject from the user's first message, if possible.
         subject = self.extract_conversation_topic(user_messages)
 
         # Extract the name of the user, if possible
         user_name = self.extract_user_name(user_messages)
 
-        # Extract assistant messages
+        # Extract assistant/ chatbot messages
         bot_messages = [
             message["content"]
             for message in self.messages
@@ -180,6 +180,7 @@ class Chatbot:
             word for string in processed_strings for word in string.split()
         ]
 
+        # Note that the messages are stored to allow for conversation reloading.
         return {
             "Name of chatbot": self.name,
             "Number of characters typed by user": sum(
@@ -200,12 +201,15 @@ class Chatbot:
         Returns:
             str: The extracted user name, or default 'UNKNOWN'.
         """
+        # Set the default name
         user_name = "UNKNOWN"
         for message in user_messages:
             # Check for keyword phrase
             if "my name is" in message.lower():
                 words = message.split()
-                index_of_name = words.index("is") + 1
+                # The word after "is" is the name, but "is" is a common word.
+                # The word "name" is less likely to appear multiple times.
+                index_of_name = words.index("name") + 2
                 # If a word actually follows "my name is"
                 if index_of_name < len(words):
                     user_name = words[index_of_name]
@@ -215,7 +219,7 @@ class Chatbot:
         return user_name
 
     def extract_conversation_topic(self, user_messages: list[str]) -> str:
-        """Extract the name of the conversation topic from user messages, if possible.
+        """Extract the conversation topic from user messages, if possible.
 
         Args:
             user_messages (list[str]): A list of messages typed by the user.
@@ -243,6 +247,7 @@ class Chatbot:
             "you",
             "Id",
             "like",
+            "please",
             "talk",
             "know",
         ]
@@ -279,7 +284,7 @@ class Chatbot:
         filename = f"conversation_{timestamp}.json"
         file_path = folder_path / filename
 
-        # Check if the filename already exists (multiple topics in the same minute)
+        # Check if the filename already exists (in the case of multiple topics in the same minute)
         counter = 1
         while file_path.exists():
             # If the filename already exists, add a counter to the filename
@@ -313,7 +318,7 @@ class Conversation:
     def start_conversation_loader(self) -> None:
         """This function is called if a user has stated that they want to load a conversation."""
         if len(self.conversation_files) == 0:
-            # No filepaths in stipulated folder
+            # No filepaths in stipulated folder, or folder does not exist.
             self.handle_no_saved_conversations()
         else:
             # Saved conversations exist
@@ -340,7 +345,7 @@ class Conversation:
             raise ValueError("Invalid input. Please enter either 0 or 1.")
 
     def handle_saved_conversations(self) -> None:
-        """This function is called when a user wants to load a conversation, and converations exist.
+        """This function is called when a user wants to load a conversation, and saved converations exist.
 
         The user can select the index of the conversation or cancel the program.
 
@@ -358,7 +363,7 @@ class Conversation:
                 f"[{idx}] {file.stem}, topic: {conversation_data['Subject of conversation']}"
             )
 
-        # Allow the user to decide whether they want to continue a conversation or exit.
+        # Allow the user to decide whether they want to continue a conversation, or exit.
         user_input = input(
             "Choose the conversation to continue (enter the index or 'cancel'): "
         )
@@ -373,10 +378,12 @@ class Conversation:
             selected_idx = int(user_input)
             # Check if the index is within the range of provided indices.
             if 0 <= selected_idx < len(self.conversation_files):
+                # Open the file of the selected conversation
                 selected_file = self.conversation_files[selected_idx]
                 with open(selected_file, "r") as json_file:
                     conversation_data = json.load(json_file)
                 print(f"Loaded conversation from {selected_file.name}")
+                # Continue the conversation where user left off, using prior messages.
                 self.continue_conversation(conversation_data["Messages"])
             else:
                 raise ValueError("Invalid index.")
