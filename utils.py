@@ -281,14 +281,12 @@ class Conversation:
         ]
 
     def start_conversation_loader(self) -> None:
-        """This function is called if a user has stated that want to load a conversation.
-
-        The function handles the case where no saved conversation exists, and where saved conversations are available.
-        """
+        """This function is called if a user has stated that they want to load a conversation."""
         if len(self.conversation_files) == 0:
             # No filepaths in stipulated folder
             self.handle_no_saved_conversations()
         else:
+            # Saved conversations exist
             self.handle_saved_conversations()
 
     def handle_no_saved_conversations(self) -> None:
@@ -322,6 +320,7 @@ class Conversation:
         print("Saved conversations:")
         # Iterate through the saved conversation file paths
         for idx, file in enumerate(self.conversation_files):
+            # Retrieve conversation
             with open(file, "r") as json_file:
                 conversation_data = json.load(json_file)
             # Print index, filename, and the topic of the conversation.
@@ -358,37 +357,56 @@ class Conversation:
             )
 
     def continue_conversation(self, conversation_data: dict) -> None:
-        # Load initial messages and chatbot name
-        self.messages = conversation_data["Messages"]
-        bot_name = conversation_data["Name of chatbot"]
+        # Load initial messages
+        loaded_messages: list = conversation_data["Messages"]
+        # Filter out all system/ personality messages
+        filtered_messages = [
+            message for message in loaded_messages if message["role"] != "system"
+        ]
 
-        if bot_name == "Henry":
-            # Continue the discussion with Henry chatbot
+        print("With whom would you like to chat today?\n[0] Henry\n[1] Vera")
+        user_input = input("You: ")
+        if user_input == "0":
+            # Input the personality
+            filtered_messages.append(
+                {
+                    "role": "system",
+                    "content": "You should try to make as many jokes as possible, whilst staying relevant to the conversation.",
+                }
+            )
+
+            # Henry chatbot
             bot = Chatbot(
                 name="Henry",
                 personality="You should try to make as many jokes as possible, whilst staying relevant to the conversation.",
                 start_prompt="Hi There, I am Henry the chatbot. What would you like to chat about today?",
-                prior_chat=self.messages,
+                prior_chat=filtered_messages,
             )
+
             # Run the chat
             bot.run_chat("gpt-3.5-turbo")
 
-        elif bot_name == "Vera":
+        elif user_input == "1":
+            # Input the personality
+            filtered_messages.append(
+                {
+                    "role": "system",
+                    "content": "You are a very sad chatbot and try respond as pessimistically as possible.",
+                }
+            )
+
             # Vera chatbot
             bot = Chatbot(
                 name="Vera",
                 personality="You are a very sad chatbot and try respond as pessimistically as possible.",
                 start_prompt="Hello, are you also very sad today? What is happening today?",
-                prior_chat=self.messages,
+                prior_chat=filtered_messages,
             )
 
             # Run the chat
             bot.run_chat("gpt-3.5-turbo")
-
         else:
-            raise ValueError(
-                "Loaded conversation data does not include prior messages."
-            )
+            raise ValueError("Invalid input. Please enter either 0 or 1.")
 
     def start_new_conversation(self) -> None:
         """This function is called when a user wants to start a new conversation.
