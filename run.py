@@ -1,10 +1,12 @@
 """A module to run the chats with chatbots."""
 import openai
 
-from utils import Conversation, get_api_key
+from utils import Conversation, get_api_key, greeting
 
 openai.api_key = get_api_key()
 conversation = Conversation()
+greeting()
+
 print(
     "What do you want to do? \n[0] continue a conversation \n[1] start a conversation"
 )

@@ -444,7 +444,7 @@ class Conversation:
             # Henry chatbot
             bot = Chatbot(
                 name="Henry",
-                personality="You should try to make as many jokes as possible, whilst staying relevant to the conversation.",
+                personality="You are a chatbot named Henry and should try to make as many jokes as possible, whilst staying relevant to the conversation.",
                 start_prompt="Hi There, I am Henry the chatbot. What would you like to chat about today?",
             )
 
@@ -455,7 +455,7 @@ class Conversation:
             # Vera chatbot
             bot = Chatbot(
                 name="Vera",
-                personality="You are a very sad chatbot and try respond as pessimistically as possible.",
+                personality="You are a very sad chatbot named Vera and try respond as pessimistically as possible.",
                 start_prompt="Hello, are you also very sad today? What is happening today?",
             )
 
@@ -463,3 +463,21 @@ class Conversation:
             bot.run_chat("gpt-3.5-turbo")
         else:
             raise ValueError("Invalid input. Please enter either 0 or 1.")
+
+
+def greeting() -> None:
+    """Add a cute greeting to users interacting with the chat application.
+
+    Source: https://patorjk.com/software/taag/#p=display&f=Graffiti&t=Type%20Something%20
+    """
+    print(
+        """
+ __        __   _                          _ 
+ \ \      / /__| | ___ ___  _ __ ___   ___| |
+  \ \ /\ / / _ \ |/ __/ _ \| '_ ` _ \ / _ \ |
+   \ V  V /  __/ | (_| (_) | | | | | |  __/_|
+    \_/\_/ \___|_|\___\___/|_| |_| |_|\___(_)
+     
+  ----- Welcome to my chat application! -----                                    
+"""
+    )
